@@ -3354,7 +3354,7 @@ function Metas({
 /* COLUMNAS PRE-CONFIGURADAS: Fenicio "Nro. pedido"|"Fecha comienzo"|"Estado entrega" / WMS "Venta"|"Estado Encuentra"|"Estado ecommerce"|"Canal" */
 function Operativa() {
   // Fenicio: un slot por tienda; se concatenan antes del cruce
-  const TIENDAS_FEN = ["TimeOut", "Tienda Nacional", "Classico"];
+  const TIENDAS_FEN = [{k:"TimeOut",l:"TimeOut"},{k:"TiendaNacional",l:"Tienda Nacional"},{k:"Classico",l:"Classico"}];
   const [archivosFen, setArchivosFen] = useState({
     TimeOut: null,
     TiendaNacional: null,
@@ -3392,33 +3392,37 @@ function Operativa() {
   });
   const [resultado, setResultado] = useState(null);
   const [vistaTab, setVistaTab] = useState("atrasados");
-  const leerFenicio = e => {
-    const file = e.target.files[0];
+  const leerFenicio = tienda => e => {
+    const file = e && e.target && e.target.files ? e.target.files[0] : null;
     if (!file) return;
-    setCargandoA(true);
-    setArchivoA(file.name);
+    const k = tienda.replace ? tienda.replace(" ", "") : tienda;
+    setCargandoFenT(p => ({...p, [k]: true}));
+    setArchivosFen(p => ({...p, [k]: file.name}));
     const reader = new FileReader();
     reader.onload = ev => {
       try {
-        const wb = XLSX.read(ev.target.result, {
-          type: "binary"
-        });
+        const wb = XLSX.read(ev.target.result, {type: "binary"});
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws, {
-          header: 1,
-          raw: false
-        });
-        const headers = data[0].map(String);
-        const rows = data.slice(1).map(r => {
+        const data = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false, defval: ""});
+        let hIdx = 0;
+        for (let i = 0; i < Math.min(5, data.length); i++) {
+          if (data[i].some(c => String(c || "").toLowerCase().includes("pedido"))) {
+            hIdx = i; break;
+          }
+        }
+        const headers = data[hIdx].map(String);
+        const rows = data.slice(hIdx + 1).map(r => {
           const o = {};
           headers.forEach((h, i) => o[h] = r[i] || "");
           return o;
-        });
-        setRowsA(rows);
+        }).filter(r => /^\d+$/.test(String(Object.values(r)[0] || "").trim()));
+        const k2 = tienda.replace ? tienda.replace(" ", "") : tienda;
+        setRowsFenT(p => ({...p, [k2]: rows}));
       } catch (err) {
         alert("Error Fenicio: " + err.message);
       }
-      setCargandoA(false);
+      const k3 = tienda.replace ? tienda.replace(" ", "") : tienda;
+      setCargandoFenT(p => ({...p, [k3]: false}));
     };
     reader.readAsBinaryString(file);
   };
